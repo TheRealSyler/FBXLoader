@@ -1,0 +1,18 @@
+{
+  "name": "fbxloader.ts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -b && cp ./src/index.d.ts dist/index.d.ts -v",
+    "prepack": "npm run build"
+  },
+  "author": "Syler",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.110.0"
+  },
+  "devDependencies": {
+    "typescript": "^3.7.2"
+  }
+}
