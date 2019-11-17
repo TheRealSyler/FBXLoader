@@ -7,6 +7,9 @@
     "build": "tsc -b && cp ./src/index.d.ts dist/index.d.ts -v",
     "prepack": "npm run build"
   },
+  "files": [
+    "dist"
+  ],
   "author": "Syler",
   "license": "MIT",
   "dependencies": {
