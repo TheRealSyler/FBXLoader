@@ -233,7 +233,7 @@ export class BinaryParser {
           );
         }
         // @ts-ignore
-        const inflate = new Zlib.Inflate(new Uint8Array(reader.getArrayBuffer(compressedLength))); // eslint-disable-line no-undef
+        const inflate = Zlib.Zlib.Inflate(new Uint8Array(reader.getArrayBuffer(compressedLength))); // eslint-disable-line no-undef
         const reader2 = new BinaryReader(inflate.decompress().buffer);
 
         switch (type) {
