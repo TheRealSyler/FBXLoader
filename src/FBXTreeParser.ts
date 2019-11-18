@@ -42,14 +42,14 @@ export class FBXTreeParser {
     public sceneGraph
   ) {}
 
-  parse() {
+  parse(fbxTree) {
     this.connections = this.parseConnections();
 
     const images = this.parseImages();
     const textures = this.parseTextures(images);
     const materials = this.parseMaterials(textures);
     const deformers = this.parseDeformers();
-    const geometryMap = new GeometryParser(this.fbxTree, this.connections).parse(deformers);
+    const geometryMap = new GeometryParser(fbxTree, this.connections).parse(deformers);
 
     this.parseScene(deformers, geometryMap, materials);
 
@@ -613,7 +613,7 @@ export class FBXTreeParser {
       }
     });
 
-    const animations = new AnimationParser().parse();
+    const animations = new AnimationParser(this.fbxTree, this.connections, this.sceneGraph).parse();
 
     // if all the models where already combined in a single group, just return that
     if (this.sceneGraph.children.length === 1 && this.sceneGraph.children[0].isGroup) {

@@ -12,11 +12,8 @@ import {
 } from 'three';
 import { convertFBXTimeToSeconds, inject } from './UtilityFunctions';
 
-var fbxTree;
-var connections;
-var sceneGraph;
-
 export class AnimationParser {
+  constructor(public fbxTree, public connections, public sceneGraph) {}
   // take raw animation clips and turn them into three.js animation clips
   parse() {
     const animationClips: any[] = [];
@@ -39,7 +36,7 @@ export class AnimationParser {
   parseClips() {
     // since the actual transformation data is stored in FBXTree.Objects.AnimationCurve,
     // if this is undefined we can safely assume there are no animations
-    if (fbxTree.Objects.AnimationCurve === undefined) return undefined;
+    if (this.fbxTree.Objects.AnimationCurve === undefined) return undefined;
 
     const curveNodesMap = this.parseAnimationCurveNodes();
 
@@ -55,7 +52,7 @@ export class AnimationParser {
   // each AnimationCurveNode holds data for an animation transform for a model (e.g. left arm rotation )
   // and is referenced by an AnimationLayer
   parseAnimationCurveNodes() {
-    const rawCurveNodes = fbxTree.Objects.AnimationCurveNode;
+    const rawCurveNodes = this.fbxTree.Objects.AnimationCurveNode;
 
     const curveNodesMap = new Map();
 
@@ -80,7 +77,7 @@ export class AnimationParser {
   // previously parsed AnimationCurveNodes. Each AnimationCurve holds data for a single animated
   // axis ( e.g. times and values of x rotation)
   parseAnimationCurves(curveNodesMap) {
-    const rawCurves = fbxTree.Objects.AnimationCurve;
+    const rawCurves = this.fbxTree.Objects.AnimationCurve;
 
     // TODO: Many values are identical up to roundoff error, but won't be optimised
     // e.g. position times: [0, 0.4, 0. 8]
@@ -96,7 +93,7 @@ export class AnimationParser {
         values: rawCurves[nodeID].KeyValueFloat.a
       };
 
-      const relationships = connections.get(animationCurve.id);
+      const relationships = this.connections.get(animationCurve.id);
 
       if (relationships !== undefined) {
         const animationCurveID = relationships.parents[0].ID;
@@ -119,20 +116,20 @@ export class AnimationParser {
   // to various AnimationCurveNodes and is referenced by an AnimationStack node
   // note: theoretically a stack can have multiple layers, however in practice there always seems to be one per stack
   parseAnimationLayers(curveNodesMap) {
-    const rawLayers = fbxTree.Objects.AnimationLayer;
+    const rawLayers = this.fbxTree.Objects.AnimationLayer;
 
     const layersMap = new Map();
 
     for (let nodeID in rawLayers) {
       const layerCurveNodes: any[] = [];
 
-      const connection = connections.get(parseInt(nodeID));
+      const connection = this.connections.get(parseInt(nodeID));
 
       if (connection !== undefined) {
         // all the animationCurveNodes used in the layer
         const children = connection.children;
 
-        children.forEach(function(child, i) {
+        children.forEach((child, i) => {
           if (curveNodesMap.has(child.ID)) {
             const curveNode = curveNodesMap.get(child.ID);
 
@@ -143,12 +140,12 @@ export class AnimationParser {
               curveNode.curves.z !== undefined
             ) {
               if (layerCurveNodes[i] === undefined) {
-                const modelID = connections.get(child.ID).parents.filter(function(parent) {
+                const modelID = this.connections.get(child.ID).parents.filter(parent => {
                   return parent.relationship !== undefined;
                 })[0].ID;
 
                 if (modelID !== undefined) {
-                  const rawModel = fbxTree.Objects.Model[modelID.toString()];
+                  const rawModel = this.fbxTree.Objects.Model[modelID.toString()];
 
                   const node: any = {
                     // @ts-ignore
@@ -159,7 +156,7 @@ export class AnimationParser {
                     initialScale: [1, 1, 1]
                   };
 
-                  sceneGraph.traverse(function(child) {
+                  this.sceneGraph.traverse(function(child) {
                     if (child.ID === rawModel.id) {
                       node.transform = child.matrix;
 
@@ -181,22 +178,22 @@ export class AnimationParser {
               if (layerCurveNodes[i]) layerCurveNodes[i][curveNode.attr] = curveNode;
             } else if (curveNode.curves.morph !== undefined) {
               if (layerCurveNodes[i] === undefined) {
-                const deformerID = connections.get(child.ID).parents.filter(function(parent) {
+                const deformerID = this.connections.get(child.ID).parents.filter(function(parent) {
                   return parent.relationship !== undefined;
                 })[0].ID;
 
-                const morpherID = connections.get(deformerID).parents[0].ID;
-                const geoID = connections.get(morpherID).parents[0].ID;
+                const morpherID = this.connections.get(deformerID).parents[0].ID;
+                const geoID = this.connections.get(morpherID).parents[0].ID;
 
                 // assuming geometry is not used in more than one model
-                const modelID = connections.get(geoID).parents[0].ID;
+                const modelID = this.connections.get(geoID).parents[0].ID;
 
-                const rawModel = fbxTree.Objects.Model[modelID];
+                const rawModel = this.fbxTree.Objects.Model[modelID];
 
                 const node = {
                   // @ts-ignore
                   modelName: rawModel.attrName ? PropertyBinding.sanitizeNodeName(rawModel.attrName) : '',
-                  morphName: fbxTree.Objects.Deformer[deformerID].attrName
+                  morphName: this.fbxTree.Objects.Deformer[deformerID].attrName
                 };
 
                 layerCurveNodes[i] = node;
@@ -217,13 +214,13 @@ export class AnimationParser {
   // parse nodes in FBXTree.Objects.AnimationStack. These are the top level node in the animation
   // hierarchy. Each Stack node will be used to create a THREE.AnimationClip
   parseAnimStacks(layersMap) {
-    const rawStacks = fbxTree.Objects.AnimationStack;
+    const rawStacks = this.fbxTree.Objects.AnimationStack;
 
     // connect the stacks (clips) up to the layers
     const rawClips = {};
 
     for (let nodeID in rawStacks) {
-      const children = connections.get(parseInt(nodeID)).children;
+      const children = this.connections.get(parseInt(nodeID)).children;
 
       if (children.length > 1) {
         // it seems like stacks will always be associated with a single layer. But just in case there are files
@@ -367,7 +364,7 @@ export class AnimationParser {
       return val / 100;
     });
 
-    var morphNum = sceneGraph.getObjectByName(rawTracks.modelName).morphTargetDictionary[rawTracks.morphName];
+    var morphNum = this.sceneGraph.getObjectByName(rawTracks.modelName).morphTargetDictionary[rawTracks.morphName];
 
     return new NumberKeyframeTrack(
       rawTracks.modelName + '.morphTargetInfluences[' + morphNum + ']',

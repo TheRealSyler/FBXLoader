@@ -25,6 +25,9 @@ import { FBXTreeParser } from './FBXTreeParser';
  *      https://code.blender.org/2013/08/fbx-binary-file-format-specification/
  */
 export class FBXLoader extends Loader {
+  fbxTree;
+  connections;
+  sceneGraph;
   constructor(manager?: LoadingManager) {
     super(manager);
   }
@@ -60,9 +63,9 @@ export class FBXLoader extends Loader {
 
   parse(FBXBuffer: string | ArrayBuffer, path: string) {
     if (isFbxFormatBinary(FBXBuffer)) {
-      var fbxTree = new BinaryParser().parse(FBXBuffer);
+      this.fbxTree = new BinaryParser().parse(FBXBuffer);
     } else {
-      var FBXText = convertArrayBufferToString(FBXBuffer);
+      const FBXText = convertArrayBufferToString(FBXBuffer);
 
       if (!isFbxFormatASCII(FBXText)) {
         throw new Error('THREE.FBXLoader: Unknown format.');
@@ -72,7 +75,7 @@ export class FBXLoader extends Loader {
         throw new Error('THREE.FBXLoader: FBX version not supported, FileVersion: ' + getFbxVersion(FBXText));
       }
 
-      fbxTree = new TextParser().parse(FBXText);
+      this.fbxTree = new TextParser().parse(FBXText);
     }
 
     // console.log( fbxTree );
@@ -80,7 +83,9 @@ export class FBXLoader extends Loader {
     const textureLoader = new TextureLoader(this.manager)
       .setPath(this.resourcePath || path)
       .setCrossOrigin(this.crossOrigin);
-    // @ts-ignore
-    return new FBXTreeParser(textureLoader, this.manager).parse(fbxTree);
+
+    return new FBXTreeParser(textureLoader, this.manager, this.fbxTree, this.connections, this.sceneGraph).parse(
+      this.fbxTree
+    );
   }
 }
