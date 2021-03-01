@@ -13,7 +13,7 @@
   "author": "Syler",
   "license": "MIT",
   "dependencies": {
-    "three": "^0.110.0"
+    "three": "^0.125.0"
   },
   "devDependencies": {
     "typescript": "^3.7.2"
